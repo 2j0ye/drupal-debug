@@ -31,10 +31,7 @@ class DisplayDumpLocationActionTest extends AbstractActionTestCase
      */
     protected function doTestTargetedBehaviorWithDebugKernel(Client $client): void
     {
-        $this->assertThat($this->getDumpText($client), $this->logicalOr(
-            $this->identicalTo("add_dump_die.module on line 5:\n\"fcy\"\n"),
-            $this->identicalTo("\"fcy\"\n")
-        ));
+        $this->assertSame("add_dump_die.module on line 5:\n\"fcy\"\n", $this->getDumpText($client));
     }
 
     /**

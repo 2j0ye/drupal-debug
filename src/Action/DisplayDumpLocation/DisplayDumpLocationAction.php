@@ -15,6 +15,7 @@ namespace Ekino\Drupal\Debug\Action\DisplayDumpLocation;
 
 use Ekino\Drupal\Debug\Action\EventSubscriberActionInterface;
 use Ekino\Drupal\Debug\Kernel\Event\DebugKernelEvents;
+use Ekino\Drupal\Debug\Action\DisplayDumpLocation\SourceContextProvider as BackPortedSourceContextProvider;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\SourceContextProvider;
@@ -35,16 +36,13 @@ class DisplayDumpLocationAction implements EventSubscriberActionInterface
 
     public function process(): void
     {
-        if (!\class_exists(SourceContextProvider::class)) {
-            return;
-        }
-
         $cloner = new VarCloner();
         $dumper = \in_array(\PHP_SAPI, array('cli', 'phpdbg'), true) ? new CliDumper() : new HtmlDumper();
+        $sourceContextProvider = $this->getSourceContextProvider();
 
-        VarDumper::setHandler(function ($var) use ($cloner, $dumper): void {
-            (function (): void {
-                list('name' => $name, 'file' => $file, 'line' => $line) = (new SourceContextProvider())->getContext();
+        VarDumper::setHandler(function ($var) use ($cloner, $dumper, $sourceContextProvider ): void {
+            (function () use ($sourceContextProvider) : void {
+                list('name' => $name, 'file' => $file, 'line' => $line) = $sourceContextProvider->getContext();
 
                 $attr = array();
                 if ($this instanceof HtmlDumper) {
@@ -66,4 +64,20 @@ class DisplayDumpLocationAction implements EventSubscriberActionInterface
             $dumper->dump($cloner->cloneVar($var));
         });
     }
+
+    /**
+     * Get the Source Context Provider.
+     * It will return an instance of the SourceContextProvider if existing.
+     * Otherwise, it will return an instance of
+     * the BackPortedSourceContextProvider.
+     */
+    private function getSourceContextProvider()
+    {
+        if (!\class_exists(SourceContextProvider::class)) {
+            return new BackPortedSourceContextProvider();
+        }
+
+        return new SourceContextProvider();
+    }
+
 }
